@@ -62,7 +62,7 @@ class Game
           error: "Must be comma separated coordinates within range, eg: 1,3"
         ) { |input|
           input.include?(",") &&
-          input.split(",").map { |c| c.strip.to_i }.all? {|n| @board.edge >= n && n > 0 }
+          input.split(",").map { |c| c.strip.to_i }.all? {|n| @board.size >= n && n > 0 }
         }
 
         x, y = placement.split(",").map { |c| c.strip.to_i }
@@ -90,84 +90,74 @@ class Game
       @players << Player.new(color, piece)
     end
   end
-
-  def score
-    result = [check_rows, check_diagonals, check_columns].compact&.first.strip
-    return result unless result.nil? || result&.empty?
-    nil
-  end
-
-  private
-
-    def check_rows
-      @board.state.chars.each_slice( @board.edge ).map do |row|
-        return row[0].strip if is_match? row
-      end
-
-      nil
-    end
-
-    def check_columns
-      @board.edge.times.each_with_index do |offset|
-        column = @board.state.chars[offset..].each_slice(@board.edge).each.map(&:first)
-
-        return column.first if is_match?(column)
-      end
-
-      nil
-    end
-
-    def check_diagonals
-      tlbr = @board.state.chars
-        .each_slice( @board.edge + 1 ).each.map(&:first)
-
-      bltr = @board.state.chars[(@board.edge - 1)..]
-        .each_slice(@board.edge - 1).to_a[..@board.edge-1].each.map(&:first)
-
-      return tlbr.first if is_match?(tlbr)
-      return bltr.first if is_match?(bltr)
-
-      nil
-    end
-
-    def is_match? selection
-      selection.uniq.size == 1 && !selection.first.empty?
-    end
 end
 
 class Board
-  attr_reader :edge
-  attr_accessor :state # for testing
+  attr_reader :size
+  attr_accessor :state
 
-  def initialize size
-    size = size.to_i
-    @state = " " * size
-    @edge = Math.sqrt(size)
+  def initialize tile_count
+    @state = " " * tile_count
+    @size = Math.sqrt(tile_count)
 
-    raise "Board must be square!" unless @edge % 1 == 0
-    @edge = @edge.to_i
+    raise "Board must be square!" unless @size % 1 == 0
+    @size = @size.to_i
   end
 
   def []=(x, y, value)
-    @state[x + y * @edge] = value
+    @state[x + y * @size] = value
+
+    # could check if *just* this row / col / diag triggers a win, for less loops
   end
 
   def [](x, y)
-    @state[x + y * @edge]
+    @state[x + y * @size]
+  end
+
+  def tiles
+    @state.chars
   end
 
   def to_s
     <<~BOARD
-      ╭#{ "───┬" * (@edge-1) }───╮
+      ╭#{ "───┬" * (@size-1) }───╮
       #{
-        @state.chars.each_slice(@edge)
+        tiles.each_slice(@size)
           .map { |row| "│ " + row.join(" │ ") + " │" }
-          .join("\n├#{ "───┼" * (@edge-1) }───┤\n")
+          .join("\n├#{ "───┼" * (@size-1) }───┤\n")
       }
-      ╰#{ "───┴" * (@edge-1) }───╯
+      ╰#{ "───┴" * (@size-1) }───╯
     BOARD
-
   end
+
+  def complete?
+    !!completed_with
+  end
+
+  Checker = Data.define(:step, :sequencer)
+  def completed_with
+    [
+      Checker.new(@size, ->(step, index) { step * @size + index }), # rows
+      Checker.new(@size, ->(step, index) { step + index * @size }), # columns
+      Checker.new(1,     ->(_, index)    { index * (@size + 1) }), # desc_diag
+      Checker.new(1,     ->(_, index)    { (index + 1) * (@size - 1) }), # asc_diag
+    ].each do |check|
+      check.step.times do |step|
+        range = @size.times.map { |index|
+          tiles[check.sequencer.call(step, index)]
+        }
+
+        return range.first if is_match?(range)
+      end
+    end
+
+    nil
+  end
+
+  private
+    def is_match? selection
+      !selection.first.strip.empty? && selection.uniq.size == 1
+    end
 end
 
 class Player
