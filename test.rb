@@ -38,46 +38,52 @@ class BoardTest < Minitest::Test
 
   def test_can_win_with_rows
     winners = [
-      "XXX456789",
-      "123XXX789",
-      "123456XXX"
+      "XXX45678 ",
+      " 23XXX789",
+      " 23456XXX"
     ]
 
     winners.each do |w|
       @board.state = w
-      assert_equal "X", @board.completed_with
+      assert_equal "X", @board.check_for_winner
     end
   end
 
   def test_can_win_with_columns
     winners = [
-      "X23X56X89",
-      "1X34X67X9",
-      "12X45X78X"
+      "X23X56X8 ",
+      "1X34X67X ",
+      " 2X45X78X"
     ]
 
     winners.each do |w|
       @board.state = w
+      assert_equal "X", @board.check_for_winner
       assert_equal true, @board.complete?
-      assert_equal "X", @board.completed_with
     end
   end
 
   def test_can_win_with_TLBR_diagonal
-    @board.state = "X234X678X"
+    @board.state = "X 34X678X"
+    assert_equal "X", @board.check_for_winner
     assert_equal true, @board.complete?
-    assert_equal "X", @board.completed_with
   end
 
   def test_can_win_with_BLTR_diagonal
-    @board.state = "12X4X6X89"
+    @board.state = " 2X4X6X89"
+    assert_equal "X", @board.check_for_winner
     assert_equal true, @board.complete?
-    assert_equal "X", @board.completed_with
   end
 
   def test_cannot_win_with_blanks
     @board.state = " " * 9
+    assert_nil @board.check_for_winner
     assert_equal false, @board.complete?
-    assert_nil @board.completed_with
+  end
+
+  def test_cats_game_is_still_complete
+    @board.state = "123456789"
+    assert_equal "🙀", @board.check_for_winner
+    assert_equal true, @board.complete?
   end
 end

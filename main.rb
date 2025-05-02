@@ -93,21 +93,21 @@ class Game
 end
 
 class Board
-  attr_reader :size
+  attr_reader :size, :completed_with
   attr_accessor :state
 
   def initialize tile_count
     @state = " " * tile_count
     @size = Math.sqrt(tile_count)
+    @completed_with = nil
 
     raise "Board must be square!" unless @size % 1 == 0
     @size = @size.to_i
   end
 
-  def []=(x, y, value)
-    @state[x + y * @size] = value
-
-    # could check if *just* this row / col / diag triggers a win, for less loops
+  def []=(x, y, piece)
+    return if complete?
+    @state[target] = piece if @state[target] == " "
   end
 
   def [](x, y)
@@ -130,33 +130,56 @@ class Board
     BOARD
   end
 
-  def complete?
-    !!completed_with
-  end
-
-  Checker = Data.define(:step, :sequencer)
-  def completed_with
-    [
-      Checker.new(@size, ->(step, index) { step * @size + index }), # rows
-      Checker.new(@size, ->(step, index) { step + index * @size }), # columns
-      Checker.new(1,     ->(_, index)    { index * (@size + 1) }), # desc_diag
-      Checker.new(1,     ->(_, index)    { (index + 1) * (@size - 1) }), # asc_diag
-    ].each do |check|
-      check.step.times do |step|
-        range = @size.times.map { |index|
-          tiles[check.sequencer.call(step, index)]
-        }
-
-        return range.first if is_match?(range)
-      end
+  def check_for_winner
+    counts = tiles.tally
+    counts.each do |piece, count|
+      next if piece.strip.empty?
+      next if count < @size
+      next unless winning? piece
+      return @completed_with = piece
     end
+
+    # check for cats
+    return @completed_with = "🙀" if !tiles.uniq.include?(" ")
 
     nil
   end
 
+  def complete?
+    check_for_winner
+    !@completed_with.nil?
+  end
+
   private
-    def is_match? selection
-      !selection.first.strip.empty? && selection.uniq.size == 1
+
+
+    def win_conditions
+      # only needs to be calculated once per board
+      @win_conditions ||= begin
+        possible_wins = []
+
+        @size.times do |y| # rows
+          possible_wins << @size.times.map {|x| x + y * @size }
+        end
+
+        @size.times do |x| # columns
+          possible_wins << @size.times.map {|y| x + y * @size }
+        end
+
+        # diags
+        possible_wins << @size.times.map {|i| i * (@size + 1) }
+        possible_wins << @size.times.map {|i| (i + 1) * (@size - 1) }
+      end
+    end
+
+    def winning? piece
+      return false if piece.strip.empty?
+      win_conditions.each do |selections|
+        range = selections.map { |i| tiles[i] }
+        next unless range.uniq == [piece]
+        return true
+      end
+      false
     end
 end
 
