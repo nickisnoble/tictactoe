@@ -11,17 +11,7 @@ class Cli
     @game.signup_players
     @game.run
 
-    banner = <<~WINNER
-      ================
-      WOOOOOOOOOOOOOO!
-      #{@game.winner.piece} wins!
-      #{@game.board}
-      ================
-
-      Would you like to play again? y/n/q
-    WINNER
-
-    continue = Prompt.ask( banner, color: @game.winner.color ).strip.downcase
+    continue = Prompt.ask( "Would you like to play again? y/n/q" ).strip.downcase
 
     unless ["y", "yes"].include? continue
       puts "\n THANKS FOR PLAYING!"
@@ -56,24 +46,35 @@ class Game
         piece = player.piece
         puts
         puts @board
-        placement = Prompt.ask(
-          "#{color.to_s.capitalize} Player. Where whould you like to place your #{piece}?",
-          color: color,
-          error: "Must be comma separated coordinates within range, eg: 1,3"
-        ) { |input|
-          input.include?(",") &&
-          input.split(",").map { |c| c.strip.to_i }.all? {|n| @board.size >= n && n > 0 }
-        }
 
-        x, y = placement.split(",").map { |c| c.strip.to_i }
-        @board[x - 1, y - 1] = piece
+        loop do
+          placement = Prompt.ask(
+            "#{color.to_s.capitalize} Player. Where whould you like to place your #{piece}?",
+            color: color,
+            error: "Must be comma separated coordinates within range, eg: 1,3"
+          ) { |input|
+            input.include?(",") &&
+            input.split(",").map { |c| c.strip.to_i }.all? {|n| @board.size >= n && n > 0 }
+          }
 
-        if !score.nil?
-          @winner = player
-          break
+          x, y = placement.split(",").map { |c| c.strip.to_i }
+
+          # flipping these might feel more intuitive while playing
+          # "row, column" vs current "column, row"
+          if @board[x - 1, y - 1] = piece
+            break
+          else
+            Prompt.log( "SPACE IS TAKEN!", color: :red )
+          end
         end
 
-        puts @winner.inspect
+        if @board.complete?
+          if winner = @players.find {|p| @board.completed_with == p.piece }
+            report_winner winner
+          else
+            report_cat
+          end
+        end
       end
     end
   end
@@ -90,6 +91,35 @@ class Game
       @players << Player.new(color, piece)
     end
   end
+
+  private
+
+    def report_winner player
+      banner = <<~WINNER
+        ======= 🏆 ======
+        WOOOOOOOOOOOOOO!
+        #{player.piece} wins!
+        #{@board}
+        =================
+      WINNER
+
+      Prompt.log( banner, color: player.color )
+    end
+
+    def report_cat
+      banner = <<~MEOW
+        == CAT'S ===========
+            |\\__/,|   (`\
+          _.|o o  |_   ) )
+        =(((==(((= GAME ====
+      MEOW
+
+      Prompt.log( banner, color: :yellow )
+    end
+
+    def complete?
+
+    end
 end
 
 class Board
@@ -107,6 +137,7 @@ class Board
 
   def []=(x, y, piece)
     return if complete?
+    target = x + y * @size
     @state[target] = piece if @state[target] == " "
   end
 
@@ -202,7 +233,7 @@ class Prompt
     reset: 0
   }
 
-  def log something, color: :cyan
+  def self.log something, color: :cyan
     puts colorize something color
   end
 
@@ -259,7 +290,17 @@ class Prompt
     end
 end
 
+module UI
+  def self.render_board board
+
+  end
+end
+
 if __FILE__ == $0
-  program = Cli.new ARGV
-  program.start
+  begin
+    Cli.new(ARGV).start
+  rescue Interrupt
+    puts "\nGoodbye"
+    exit 0
+  end
 end
