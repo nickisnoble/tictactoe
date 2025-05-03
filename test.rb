@@ -1,14 +1,36 @@
 require 'minitest/autorun'
 require 'minitest/reporters'
 Minitest::Reporters.use!(Minitest::Reporters::DefaultReporter.new)
-require_relative 'main'
+
+Dir["./lib/*.rb"].each {|file| require file }
 
 
-class GameTest < Minitest::Test
-  def setup
-    @game = Game.new
+class CliTest < Minitest::Test
+  def test_can_be_called_with_blank_args
+    assert_silent do
+      Cli.new
+    end
   end
 
+  def test_parses_args_correctly
+    cli = Cli.new [
+      "--players", "3",
+      "--board", "16"
+    ]
+    assert_equal 3, cli.options[:players]
+    assert_equal 16, cli.options[:board_size]
+  end
+
+  def test_rejects_bad_args
+    error = assert_raises(Cli::SquareError) {
+      Cli.new ["--board", "5"]
+    }
+
+    assert_equal "Must be a square number!", error.message
+  end
+end
+
+class GameTest < Minitest::Test
 end
 
 class BoardTest < Minitest::Test
