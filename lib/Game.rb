@@ -1,30 +1,30 @@
 class Game
   attr_reader :board, :winner
-  def initialize(options={ players: 2, board: 9 })
-    @options = options
-    @board = Board.new(options[:board])
+  def initialize with_board
+    @board = with_board
     @players = []
   end
 
-  def run
+  def play
     round = 0
-    @winner = false
+    winner = nil
+    rounds = "🯰🯱🯲🯳🯴🯵🯶🯷🯸🯹"
 
-    while !@winner do
+    while winner.nil? do
       round += 1
       puts
-      puts "=" * 9
-      puts "  ROUND #{round}!\n"
+      Prompt.log ("🮐" + "" * @board.size - 1 ), :cyan
+      Prompt.log "🮐🯁🯂🯃 ROUND #{rounds[round-1]}!\n", :cyan
 
       @players.each do |player|
         color = player.color
         piece = player.piece
-        puts
-        puts @board
+
+        render_board color
 
         loop do
           placement = Prompt.ask(
-            "#{color.to_s.capitalize} Player. Where whould you like to place your #{piece}?",
+            "#{color.to_s.capitalize} Player. Where whould you like to place your #{piece}?\n  (row, column)",
             color: color,
             error: "Must be comma separated coordinates within range, eg: 1,3"
           ) { |input|
@@ -32,11 +32,9 @@ class Game
             input.split(",").map { |c| c.strip.to_i }.all? {|n| @board.size >= n && n > 0 }
           }
 
-          x, y = placement.split(",").map { |c| c.strip.to_i }
+          row, column = placement.split(",").map { |c| c.strip.to_i }
 
-          # flipping these might feel more intuitive while playing
-          # "row, column" vs current "column, row"
-          if @board[x - 1, y - 1] = piece
+          if @board[column - 1, row - 1] = piece
             break
           else
             Prompt.log( "SPACE IS TAKEN!", color: :red )
@@ -54,14 +52,23 @@ class Game
     end
   end
 
-  def signup_players
-    while @players.count < @options[:players]
-      puts "\nPLAYER #{@players.count + 1}, APPROACH!\n"
+  def signup_players count
+    while @players.size < count
+      Prompt.log "\nPLAYER #{@players.size + 1}, APPROACH!\n"
 
-      piece = Prompt.ask("Type a glyph:", error: "Must be only one character, unused by another player!") { |c| c.length == 1 && !@players.map(&:piece).include?(c)
-    }
+      piece = Prompt.ask(
+        "Choose your glyph!\n  (Eg. X or O or ❖ or 𐩕)",
+        error: "Must be only one character, unused by another player!") do |c|
+          c.length == 1 && !@players.map(&:piece).include?(c)
+      end
 
-      color = Prompt.select( "What color would you like to play as?", Prompt::COLORS.keys.filter {|c| c != :reset }, error: "Someone already took that!") { |choice| !@players.map(&:color).include? choice }
+      valid_colors = Prompt::COLORS.keys.filter do |c|
+        ![:reset, :red, :cyan, :yellow, :pink].include? c
+      end
+
+      color = Prompt.select( "What color would you like to play as?", valid_colors, error: "Players can't use the same colors!") { |choice|
+        !@players.map(&:color).include? choice
+      }
 
       @players << Player.new(color, piece)
     end
@@ -78,7 +85,7 @@ class Game
         =================
       WINNER
 
-      Prompt.log( banner, color: player.color )
+      Prompt.log banner, player.color
     end
 
     def report_cat
@@ -89,10 +96,20 @@ class Game
         =(((==(((= GAME ====
       MEOW
 
-      Prompt.log( banner, color: :yellow )
+      Prompt.log banner, :yellow
     end
 
-    def complete?
+    def render_board in_color=:reset
+      board = <<~BOARD
+        ╭#{ "───┬" * (@board.size-1) }───╮
+        #{
+          @board.tiles.each_slice(@board.size)
+            .map { |row| "│ " + row.join(" │ ") + " │" }
+            .join("\n├#{ "───┼" * (@board.size-1) }───┤\n")
+        }
+        ╰#{ "───┴" * (@board.size-1) }───╯
+      BOARD
 
+      Prompt.log board, in_color
     end
 end

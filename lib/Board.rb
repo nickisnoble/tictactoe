@@ -1,6 +1,6 @@
 class Board
-  attr_reader :size, :completed_with
-  attr_accessor :state
+  attr_reader :size, :tiles, :completed_with
+  attr_writer :state # for tests
 
   def initialize tile_count
     @state = " " * tile_count
@@ -23,18 +23,6 @@ class Board
 
   def tiles
     @state.chars
-  end
-
-  def to_s
-    <<~BOARD
-      ╭#{ "───┬" * (@size-1) }───╮
-      #{
-        tiles.each_slice(@size)
-          .map { |row| "│ " + row.join(" │ ") + " │" }
-          .join("\n├#{ "───┼" * (@size-1) }───┤\n")
-      }
-      ╰#{ "───┴" * (@size-1) }───╯
-    BOARD
   end
 
   def check_for_winner

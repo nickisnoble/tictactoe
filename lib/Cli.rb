@@ -13,21 +13,25 @@ class Cli
   end
 
   def start
-    @game = Game.new
-    @game.signup_players
-    @game.run
+    loop do
+      board = Board.new @options[:board_size]
+      game = Game.new board
+      game.signup_players @options[:players]
+      game.play
 
-    continue = Prompt.ask( "Would you like to play again? y/n/q" ).strip.downcase
-
-    unless ["y", "yes"].include? continue
-      puts "\n THANKS FOR PLAYING!"
-      exit 0
-    else
-      start
+      unless continue?
+        puts "\n THANKS FOR PLAYING!"
+        exit 0
+      end
     end
   end
 
   private
+
+    def continue?
+      continue = Prompt.ask( "Would you like to play again? y/n/q" ).strip.downcase
+      ["y", "yes"].include? continue
+    end
 
     def read_options from_args
       OptionParser.new do |opts|
@@ -53,88 +57,4 @@ class Cli
 
     class SquareNumber < Integer; end
     class SquareError < StandardError; end
-end
-
-class Prompt
-  COLORS = {
-    red: 31,
-    green: 32,
-    yellow: 33,
-    blue: 34,
-    magenta: 35,
-    cyan: 36,
-    reset: 0
-  }
-
-  def self.log something, color: :cyan
-    puts colorize something color
-  end
-
-  def self.ask( something,
-    color: :cyan,
-    error: "That doesn't look right",
-    validation: nil,
-    &block
-  )
-    validator = block || validation
-
-    loop do
-      puts
-      print colorize(something + " ", color)
-      input = gets&.chomp&.strip
-      if input.empty?
-        puts "You gotta answer"
-      elsif validator && !validator.call(input)
-        puts error
-      else
-        return input
-      end
-    end
-  end
-
-  def self.number()
-    ask(prompt, required: true, error: "Enter a positive number") { |i| i.match?(/^\d+$/) && i.to_i > 0 }.to_i
-  end
-
-  def self.select something, options, error: nil, &block
-    puts
-    puts colorize(something, :cyan)
-    options.each_with_index do |option, index|
-      puts colorize( "  (#{index + 1}) #{option}",
-        # magic case for color highlights
-        (COLORS.has_key?(option) ? option.to_sym : :blue)
-      )
-    end
-
-    choice = ask("Enter choice (1–#{options.count}):", error: error || "Invalid choice") do |input|
-      i = input.to_i
-      return false unless i.between?(1, options.count)
-      return false if block_given? && !block.call(options[i - 1])
-      true
-    end.to_i - 1
-
-    options[ choice ]
-  end
-
-  private
-
-    def self.colorize text, swatch
-      "\e[#{COLORS[swatch] || COLORS[:reset]}m#{text}\e[0m"
-    end
-end
-
-module UI
-  COLORS = {
-    red: 31,
-    green: 32,
-    yellow: 33,
-    blue: 34,
-    magenta: 35,
-    cyan: 36,
-    reset: 0
-  }
-
-  def self.render_board board
-
-  end
 end
