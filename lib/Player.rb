@@ -1,7 +1,7 @@
 class Player
-  attr_reader :color, :piece
+  attr_reader :piece
 
-  def initialize color, piece
-    @color, @piece = color, piece
+  def initialize piece
+    @piece = piece
   end
 end

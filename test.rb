@@ -1,9 +1,57 @@
+require 'pty'
+require 'expect'
 require 'minitest/autorun'
 require 'minitest/reporters'
 Minitest::Reporters.use!(Minitest::Reporters::DefaultReporter.new)
 
 Dir["./lib/*.rb"].each {|file| require file }
 
+class GameTest < Minitest::Test
+  def test_a_normal_game
+    PTY.spawn("ruby play.rb") do |stdout, stdin, pid|
+      output = +""
+      Thread.new { stdout.each { |line| output << line } }
+
+      %w[
+        X
+        O
+        1,1
+        2,3
+        2,2
+        1,3
+        3,3
+      ].each { |input| stdin.puts(input) }
+
+      sleep 3
+
+      assert_match(/X wins/i, output)
+    end
+  end
+
+  def test_a_cats_game
+    PTY.spawn("ruby play.rb") do |stdout, stdin, pid|
+      stdout.expect(/PLAYER 1.*Choose your glyph!/, 2)
+
+      %w[
+        X
+        O
+        1,1
+        1,2
+        1,3
+        2,2
+        2,1
+        2,3
+        3,2
+        3,1
+        3,3
+      ].each { |input| stdin.puts(input) }
+
+      result = stdout.expect(/CAT'S/, 2)
+      refute_nil result
+      refute_empty result
+    end
+  end
+end
 
 class CliTest < Minitest::Test
   def test_can_be_called_with_blank_args
@@ -28,9 +76,6 @@ class CliTest < Minitest::Test
 
     assert_equal "Must be a square number!", error.message
   end
-end
-
-class GameTest < Minitest::Test
 end
 
 class BoardTest < Minitest::Test

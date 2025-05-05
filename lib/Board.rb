@@ -1,6 +1,6 @@
 class Board
   attr_reader :size, :tiles, :completed_with
-  attr_writer :state # for tests
+  attr_writer :state
 
   def initialize tile_count
     @state = " " * tile_count
@@ -12,13 +12,14 @@ class Board
   end
 
   def []=(x, y, piece)
-    return if complete?
+    return false if complete?
     target = x + y * @size
-    @state[target] = piece if @state[target] == " "
-  end
-
-  def [](x, y)
-    @state[x + y * @size]
+    if @state[target] == " "
+      @state[target] = piece
+      true
+    else
+      false
+    end
   end
 
   def tiles
@@ -43,6 +44,18 @@ class Board
   def complete?
     check_for_winner
     !@completed_with.nil?
+  end
+
+  def to_s
+    <<~BOARD
+      ╭#{ "───┬" * (size-1) }───╮
+      #{
+        tiles.each_slice(size)
+          .map { |row| "│ " + row.join(" │ ") + " │" }
+          .join("\n├#{ "───┼" * (size-1) }───┤\n")
+      }
+      ╰#{ "───┴" * (size-1) }───╯
+    BOARD
   end
 
   private

@@ -8,24 +8,20 @@ class Game
   def play
     round = 0
     winner = nil
-    rounds = "🯰🯱🯲🯳🯴🯵🯶🯷🯸🯹"
 
     while winner.nil? do
       round += 1
       puts
-      Prompt.log ("🮐" + "" * @board.size - 1 ), :cyan
-      Prompt.log "🮐🯁🯂🯃 ROUND #{rounds[round-1]}!\n", :cyan
+      Prompt.log ("🮐" + "" * (@board.size - 1) ), :cyan
+      Prompt.log "🮐🯁🯂🯃 ROUND #{round}!\n", :cyan
 
       @players.each do |player|
-        color = player.color
         piece = player.piece
-
-        render_board color
+        puts @board
 
         loop do
           placement = Prompt.ask(
-            "#{color.to_s.capitalize} Player. Where whould you like to place your #{piece}?\n  (row, column)",
-            color: color,
+            "#{piece} Player. Where whould you like to place your #{piece}?\n  (row, column)",
             error: "Must be comma separated coordinates within range, eg: 1,3"
           ) { |input|
             input.include?(",") &&
@@ -34,11 +30,12 @@ class Game
 
           row, column = placement.split(",").map { |c| c.strip.to_i }
 
-          if @board[column - 1, row - 1] = piece
-            break
-          else
+          unless (@board[column - 1, row - 1] = piece)
             Prompt.log( "SPACE IS TAKEN!", color: :red )
+            next
           end
+
+          break
         end
 
         if @board.complete?
@@ -47,6 +44,7 @@ class Game
           else
             report_cat
           end
+          break
         end
       end
     end
@@ -62,54 +60,24 @@ class Game
           c.length == 1 && !@players.map(&:piece).include?(c)
       end
 
-      valid_colors = Prompt::COLORS.keys.filter do |c|
-        ![:reset, :red, :cyan, :yellow, :pink].include? c
-      end
-
-      color = Prompt.select( "What color would you like to play as?", valid_colors, error: "Players can't use the same colors!") { |choice|
-        !@players.map(&:color).include? choice
-      }
-
-      @players << Player.new(color, piece)
+      @players << Player.new(piece)
     end
   end
 
   private
 
     def report_winner player
-      banner = <<~WINNER
-        ======= 🏆 ======
-        WOOOOOOOOOOOOOO!
-        #{player.piece} wins!
-        #{@board}
-        =================
-      WINNER
-
-      Prompt.log banner, player.color
+      puts "======= 🏆 ======"
+      puts "WOOOOOOOOOOOOOOO!"
+      puts "#{player.piece} wins!"
+      puts @board
+      puts "================="
     end
 
     def report_cat
-      banner = <<~MEOW
-        == CAT'S ===========
-            |\\__/,|   (`\
-          _.|o o  |_   ) )
-        =(((==(((= GAME ====
-      MEOW
-
-      Prompt.log banner, :yellow
-    end
-
-    def render_board in_color=:reset
-      board = <<~BOARD
-        ╭#{ "───┬" * (@board.size-1) }───╮
-        #{
-          @board.tiles.each_slice(@board.size)
-            .map { |row| "│ " + row.join(" │ ") + " │" }
-            .join("\n├#{ "───┼" * (@board.size-1) }───┤\n")
-        }
-        ╰#{ "───┴" * (@board.size-1) }───╯
-      BOARD
-
-      Prompt.log board, in_color
+        puts "== CAT'S ==========="
+        puts "  |\\__/,|   (`\\"
+        puts "_.|o o  |_   ) )"
+        puts "=(((==(((= GAME ===="
     end
 end
